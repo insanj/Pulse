@@ -1,7 +1,7 @@
 Pulse
 =======================
 
-Suppress spurious slider slides. A small pulse indicates a locked value for UISliders, and it's impossible to change it until sliding again.
+Suppress spurious slider slides. Tap and hold any slider for just less than a second to lock it into place.
 
 ---------------------------------------	
 [Creative Commons Attribution-NonCommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/) as of 2014:

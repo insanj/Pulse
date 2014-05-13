@@ -9,75 +9,68 @@
 #define PULSE_INTERVAL 0.75 // Shared interval for wait and animation
 
 @interface UISlider (Pulse)
-- (void)pulse_beginPulsed;
-- (void)pulse_checkPulsed;
-- (void)pulse_triggerPulse;
-- (void)pulse_endPulsed;
+- (void)checkPulse:(NSNumber *)value;
+- (void)endPulse;
 @end
 
 %hook UISlider
 
-static char * kPulseSliderValueKey;
-static char * kPulseOverrideKey;
+// If the value stored is nil, no interactions have occured for this UISlider touch
+// If the value stored isn't nil, then the UISlider should be locked to it
+static char * kPulseSliderValueKey; 
 
 // Injects the Pulse value observer to new instances of UISlider
 - (id)initWithFrame:(CGRect)frame {
 	UISlider *slider = (UISlider *) %orig();
 
 	PLLOG(@"Adding Pulse observers to UISlider instance: %@", slider);
-	[slider addTarget:slider action:@selector(pulse_beginPulsed) forControlEvents:UIControlEventTouchDown];
-	[slider addTarget:slider action:@selector(pulse_checkPulsed) forControlEvents:UIControlEventValueChanged];
-	[slider addTarget:slider action:@selector(pulse_endPulsed) forControlEvents:UIControlEventTouchUpInside];
+	[slider addTarget:slider action:@selector(checkPulse:) forControlEvents:UIControlEventValueChanged];
+	[slider addTarget:slider action:@selector(endPulse) forControlEvents:UIControlEventTouchUpInside];
 
 	return slider;
 }
 
-// Marks a UISlider as valid for Pulsing
-%new - (void)pulse_beginPulsed {
-	objc_setAssociatedObject(self, &kPulseOverrideKey, @(NO), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
 // Checks if a UISlider should be locked into place by Pulse (has already been Pulsed)
-%new - (void)pulse_checkPulsed {
-	if ([objc_getAssociatedObject(self, &kPulseOverrideKey) boolValue]) {
-		self.value = [objc_getAssociatedObject(self, &kPulseSliderValueKey) floatValue];
+%new - (void)checkPulse:(NSNumber *)value {
+	[NSObject cancelPreviousPerformRequestsWithTarget:self];
+	NSNumber *pulseSliderValue = objc_getAssociatedObject(self, &kPulseSliderValueKey);
+	BOOL valueIsNumber = value && [value isKindOfClass:NSNumber.class];
+
+	// If we've already checked before...
+	if (pulseSliderValue) { 
+		PLLOG(@"Looks like we've already checked %@ and it should be locked by Pulse!", self);
+		self.value = [pulseSliderValue floatValue];
+	}
+
+	// If we've prompted a check, after the expanded interval...
+	else if (valueIsNumber && !pulseSliderValue) {
+		PLLOG(@"Checking if we should lock %@ into place and Pulse...", self);
+
+		// Pretty Pulse trigger and associated object assignment
+		if ([value floatValue] == self.value) {
+			PLLOG(@"Triggering Pulse from UISlider instance: %@", self);
+			objc_setAssociatedObject(self, &kPulseSliderValueKey, value, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	
+			CGRect thumbRect = [self thumbRectForBounds:self.bounds trackRect:[self trackRectForBounds:self.bounds] value:self.value];
+			PLView *circle = [[PLView alloc] initWithFrame:thumbRect];
+			circle.center = [self.superview convertPoint:CGPointMake(CGRectGetMidX(thumbRect), CGRectGetMidY(thumbRect)) fromView:self];
+			circle.backgroundColor = [self respondsToSelector:@selector(tintColor)] ? [self tintColor] : [UIColor blueColor];
+			[self.superview insertSubview:circle belowSubview:self];
+
+			[circle animateWithDuration:PULSE_INTERVAL];
+		}
 	}
 	
+	// If we've done nothing whatsoever before...
 	else {
-		CGFloat pulseSliderValue = self.value;
-		objc_setAssociatedObject(self, &kPulseSliderValueKey, @(self.value), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-		// Waits for the expanded interval to see if a Pulse should occur (user held on UISlider)
-		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(PULSE_INTERVAL * NSEC_PER_SEC)), dispatch_get_main_queue(), ^(void) {
-			if (pulseSliderValue == [objc_getAssociatedObject(self, &kPulseSliderValueKey) floatValue]) {
-				[self pulse_triggerPulse];
-			}
-		});
+		PLLOG(@"Queuing fresh Pulse check from %@", self);
+		[self performSelector:@selector(checkPulse:) withObject:@(self.value) afterDelay:PULSE_INTERVAL];
 	}
 }
 
-// Pretty Pulse trigger and associated object assignment
-%new - (void)pulse_triggerPulse {
-	NSNumber *pulseOverrideValue = objc_getAssociatedObject(self, &kPulseOverrideKey);
-	if (!pulseOverrideValue || [pulseOverrideValue boolValue]) {
-		return;
-	}
-
-	PLLOG(@"Triggering Pulse from UISlider instance: %@", self);
-	objc_setAssociatedObject(self, &kPulseOverrideKey, @(YES), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	
-	CGRect thumbRect = [self thumbRectForBounds:self.bounds trackRect:[self trackRectForBounds:self.bounds] value:self.value];
-	PLView *circle = [[PLView alloc] initWithFrame:thumbRect];
-	circle.center = [self.superview convertPoint:CGPointMake(CGRectGetMidX(thumbRect), CGRectGetMidY(thumbRect)) fromView:self];
-	circle.backgroundColor = [self respondsToSelector:@selector(tintColor)] ? [self tintColor] : [UIColor blueColor];
-	[self.superview insertSubview:circle belowSubview:self];
-
-	[circle animateWithDuration:PULSE_INTERVAL];
-}
-
-%new - (void)pulse_endPulsed {
-	PLLOG(@"[Pulse] Guaranteeing Pulse-lock from UISlider instance: %@", self);
-	objc_setAssociatedObject(self, &kPulseOverrideKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+%new - (void)endPulse {
+	PLLOG(@"Ended Pulse lock on slider %@", self);
+	objc_setAssociatedObject(self, &kPulseSliderValueKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 %end
