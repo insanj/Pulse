@@ -1,15 +1,17 @@
 THEOS_PACKAGE_DIR_NAME = debs
 TARGET = :clang
-ARCHS = armv7 arm64
+ARCHS = armv7 armv7s arm64
+
+include theos/makefiles/common.mk
 
 TWEAK_NAME = Pulse
-Pulse_FILES = Tweak.xm PLView.m
+Pulse_FILES = Pulse.xm PLView.m
 Pulse_FRAMEWORKS = UIKit CoreGraphics
 Pulse_CFLAGS = -fobjc-arc
 
-include theos/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tweak.mk
-include $(THEOS_MAKE_PATH)/aggregate.mk
 
+before-stage::
+	find . -name ".DS_Store" -delete
 internal-after-install::
 	install.exec "killall -9 backboardd"

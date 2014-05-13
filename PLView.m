@@ -9,33 +9,27 @@
 #import "PLView.h"
 
 @implementation PLView
+@synthesize scale;
 
--(PLView *)initWithFrame:(CGRect)frame{
-	if((self = [super initWithFrame:frame])){
+- (PLView *)initWithFrame:(CGRect)frame{
+	self = [super initWithFrame:frame];
+	if (self) {
 		self.alpha = 0.75;
+		self.backgroundColor = [UIColor blackColor];
 		self.layer.cornerRadius = frame.size.height * 0.5;
-		
-		[self setColor:[UIColor blackColor]];
-		[self setDrasticity:frame.size.height/7.5];
+
+		scale = frame.size.height / 7.5;
 	}
 	
 	return self;
 }
 
--(void)setColor:(UIColor *)color{
-	_color = color;
-	self.backgroundColor = color;
-}
 
--(void)setDrasticity:(CGFloat)drasticity{
-	_drasticity = drasticity;
-}
-
--(void)animateWithDuration:(CGFloat)duration{
-	[UIView animateWithDuration:duration animations:^(void){
-		[self setTransform:CGAffineTransformMakeScale(_drasticity, _drasticity)];
-		[self setAlpha:0.0];
-	} completion:^(BOOL finished){
+- (void)animateWithDuration:(NSTimeInterval)duration {
+	[UIView animateWithDuration:duration animations:^(void) {
+		self.transform = CGAffineTransformMakeScale(scale, scale);
+		self.alpha = 0.0;
+	} completion:^(BOOL finished) {
 		[self removeFromSuperview];
 	}];
 }

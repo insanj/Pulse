@@ -8,14 +8,11 @@
 
 #import <UIKit/UIKit.h>
 
-@interface PLView : UIView
+@interface PLView : UIView 
 
-@property (nonatomic, retain) UIColor *color;
-@property (nonatomic, readwrite) CGFloat thickness, drasticity;
+@property(nonatomic, readwrite) CGFloat scale;
 
--(PLView *)initWithFrame:(CGRect)frame;
--(void)setColor:(UIColor *)color;
--(void)setDrasticity:(CGFloat)drasticity;
+- (PLView *)initWithFrame:(CGRect)frame;
+- (void)animateWithDuration:(NSTimeInterval)duration;
 
--(void)animateWithDuration:(CGFloat)duration;
 @end
